@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fee Based x Commission</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#ffffff; --ink:#151a23; --muted:#5d6675; --line:#e3e6eb; --soft:#f0f2f5;
+  --cb:#c2410c; --cb-soft:#fdeee5; --fb:#1d4ed8; --fb-soft:#e6edfd; --good:#15803d; --bad:#b91c1c; --hl:#fff7d6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1117; --card:#161b24; --ink:#e7eaf0; --muted:#97a0b0; --line:#273041; --soft:#1c2330;
+    --cb:#fb923c; --cb-soft:#3a2416; --fb:#7aa2ff; --fb-soft:#1a2645; --good:#4ade80; --bad:#f87171; --hl:#3a3315;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1117; --card:#161b24; --ink:#e7eaf0; --muted:#97a0b0; --line:#273041; --soft:#1c2330;
+  --cb:#fb923c; --cb-soft:#3a2416; --fb:#7aa2ff; --fb-soft:#1a2645; --good:#4ade80; --bad:#f87171; --hl:#3a3315;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:14px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.02em}
+h2{font-size:18px;margin:0 0 4px;letter-spacing:-.01em}
+h3{font-size:15px;margin:22px 0 6px}
+.sub{color:var(--muted);margin:0 0 22px;max-width:820px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:18px}
+.grid{display:grid;gap:18px}
+.g-in{grid-template-columns:minmax(0,1fr) minmax(0,1.35fr)}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.hint{font-size:11px;color:var(--muted);margin-top:3px}
+input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--ink);font:inherit;font-variant-numeric:tabular-nums}
+input:focus,select:focus{outline:2px solid var(--fb);outline-offset:0;border-color:transparent}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+th:first-child,td:first-child{text-align:left}
+.tin td{padding:6px 5px}.tin input{padding:7px 8px;text-align:right}
+.cardhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.segs{display:flex;gap:8px;flex-wrap:wrap}
+[hidden]{display:none!important}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--soft)}
+.seg button{border:0;border-radius:0;background:transparent;padding:6px 12px;font-size:12px;color:var(--muted)}
+.seg button.on{background:var(--fb);color:#fff}
+.wsum-bad{color:var(--bad);font-weight:700}
+.tin input:disabled{color:var(--muted);opacity:.75;cursor:not-allowed;font-size:12px}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px}
+.p-cb{background:var(--cb-soft);color:var(--cb)}.p-fb{background:var(--fb-soft);color:var(--fb)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.kpi .t{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+.kpi .v{font-size:23px;font-weight:800;margin:4px 0 2px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .d{font-size:12px;color:var(--muted)}
+.kpi.cb{border-top:3px solid var(--cb)}.kpi.fb{border-top:3px solid var(--fb)}
+.win{font-weight:700}.pos{color:var(--good)}.neg{color:var(--bad)}
+.verdict{font-size:15px;padding:14px 16px;border-radius:12px;background:var(--soft);border:1px solid var(--line);margin-bottom:18px}
+.g-ch{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}
+.chartbox{position:relative;height:300px}
+.chartbox.big{height:440px}
+@media (max-width:600px){.chartbox.big{height:320px}}
+.scroll{overflow-x:auto}
+.gcb{background:color-mix(in srgb,var(--cb) 8%,var(--card))}
+.gfb{background:color-mix(in srgb,var(--fb) 8%,var(--card))}
+th.gcb,th.gfb{text-align:center;font-weight:700;letter-spacing:.06em}
+th.gcb{color:var(--cb)} th.gfb{color:var(--fb)}
+.gsep{border-left:2px solid var(--card)}
+tr.mark td{font-weight:600}
+tr.mark td.gcb{background:color-mix(in srgb,var(--cb) 18%,var(--card))}
+tr.mark td.gfb{background:color-mix(in srgb,var(--fb) 18%,var(--card))}
+tr.mark td:not(.gcb):not(.gfb){background:var(--hl)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-weight:600;padding:9px 14px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button.pri{background:var(--fb);border-color:var(--fb);color:#fff}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.rac p,.rac li{max-width:880px}
+.formula{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0;overflow-x:auto;white-space:pre}
+.step{display:flex;gap:12px;margin-top:18px}
+.step .n{flex:0 0 28px;height:28px;border-radius:50%;background:var(--fb);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:13px}
+.step .b{flex:1;min-width:0}
+.step h3{margin-top:3px}
+.note{font-size:12px;color:var(--muted)}
+@media (max-width:900px){.g-in,.g-ch{grid-template-columns:minmax(0,1fr)}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.fields{grid-template-columns:minmax(0,1fr)}.kpis{grid-template-columns:minmax(0,1fr)}h1{font-size:22px}}
+@media print{.noprint{display:none}body{background:#fff}.card,.kpi{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h1>Calculadora · Fee Based × Commission Based</h1>
+      <p class="sub">Compara a mesma carteira nos dois modelos. No <b>commission based</b> o cliente não paga taxa explícita, mas os produtos rendem menos. No <b>fee based</b> os produtos rendem mais (sem rebate embutido), e o cliente paga uma taxa anual sobre o patrimônio, cobrada todo mês. Altere qualquer campo: tudo é recalculado na hora.</p>
+    </div>
+    <div class="btns noprint">
+      <button id="reset">Restaurar padrão</button>
+      <button class="pri" onclick="window.print()">Salvar em PDF</button>
+    </div>
+  </div>
+
+  <div class="grid g-in">
+    <div class="card">
+      <h2>Premissas gerais</h2>
+      <p class="note" style="margin:0 0 14px">Cenário macro e regras da cobrança do fee.</p>
+      <div class="fields">
+        <div><label>Patrimônio inicial (R$)</label><input id="pat" type="text" inputmode="decimal" autocomplete="off"></div>
+        <div><label>Horizonte (anos)</label><input id="anos" type="number" step="1" min="1" max="50"></div>
+        <div><label>CDI (% a.a.)</label><input id="cdi" type="number" step="0.01"></div>
+        <div><label>Inflação / IPCA (% a.a.)</label><input id="ipca" type="number" step="0.01"></div>
+        <div><label>Taxa fee based (% a.a.)</label><input id="fee" type="number" step="0.05" min="0"></div>
+        <div><label>Rentab. dos fundos (% do CDI)</label><input id="fun_cdi" type="number" step="0.5" min="0"><div class="hint">Antes do cashback; igual nos dois modelos.</div></div>
+        <div><label>Marcos destacados (anos)</label><input id="marcos" type="text"><div class="hint">Ex.: 5, 10</div></div>
+        <div><label>Base de cálculo do fee</label>
+          <select id="base"><option value="inicio">Patrimônio no início do mês</option><option value="media">Patrimônio médio do mês</option><option value="fim">Patrimônio no fim do mês</option></select></div>
+        <div><label>Mensalização do fee</label>
+          <select id="mens"><option value="linear">Linear (taxa ÷ 12)</option><option value="equiv">Equivalente composta</option></select></div>
+        <div><label>Débito do fee (dia útil do mês seguinte)</label><input id="dia_fee" type="number" step="1" min="0" max="21"><div class="hint" id="diaHint">O fee do mês é debitado no mês seguinte e rende até lá.</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="cardhead"><h2>Alocação e taxas dos produtos</h2>
+        <div class="segs noprint">
+          <div class="seg" role="group" aria-label="Forma de lançar"><button type="button" id="eDet">Detalhado</button><button type="button" id="eSim">Simplificado</button></div>
+          <div class="seg" id="segPeso" role="group" aria-label="Lançar alocação por"><button type="button" id="mPct" data-m="pct">Peso %</button><button type="button" id="mVal" data-m="valor">Valor R$</button></div>
+        </div></div>
+      <div id="simpBox" hidden>
+      <p class="note" style="margin:0 0 10px">Em vez de lançar ativo por ativo, informe quanto a carteira commission rende e quanto a carteira fee based rende a mais. O adicional é convertido para a taxa mensal equivalente e somado ao rendimento mensal do fee based.</p>
+      <div class="scroll">
+      <table class="tin">
+        <thead><tr><th>Linha</th><th><span class="pill p-cb">Commission</span></th><th><span class="pill p-fb">Fee based</span></th><th>Unidade</th></tr></thead>
+        <tbody>
+          <tr><td><b>Rendimento da carteira</b></td><td><input id="simp_base" type="number" step="0.01"></td><td><input type="text" value="= commission + adicional" disabled></td><td class="note">% a.a.</td></tr>
+          <tr><td><b>Rendimento adicional fee based</b></td><td><input type="text" value="não se aplica" disabled></td><td><input id="simp_add" type="number" step="0.05" min="1.5" max="3" title="Entre 1,5% e 3% a.a."></td><td class="note">% a.a.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="hint" id="simpInfo"></div>
+      </div>
+      <div id="detBox">
+      <p class="note" style="margin:0 0 10px">Peso de cada classe e a taxa que o produto paga em cada modelo.</p>
+      <div class="scroll">
+      <table class="tin">
+        <thead><tr><th>Classe</th><th id="wHead">Peso (%)</th><th><span class="pill p-cb">Commission</span></th><th><span class="pill p-fb">Fee based</span></th><th>Unidade</th></tr></thead>
+        <tbody>
+          <tr><td><b>Prefixado</b></td><td><input id="w_pre" type="text" inputmode="decimal" autocomplete="off"></td><td><input id="cb_pre" type="number" step="0.01"></td><td><input id="fb_pre" type="number" step="0.01"></td><td class="note">% a.a.</td></tr>
+          <tr><td><b>Inflação</b></td><td><input id="w_ipca" type="text" inputmode="decimal" autocomplete="off"></td><td><input id="cb_ipca" type="number" step="0.01"></td><td><input id="fb_ipca" type="number" step="0.01"></td><td class="note">IPCA + % a.a.</td></tr>
+          <tr><td><b>Pós-fixado</b></td><td><input id="w_pos" type="text" inputmode="decimal" autocomplete="off"></td><td><input id="cb_pos" type="number" step="0.1"></td><td><input id="fb_pos" type="number" step="0.1"></td><td class="note">% do CDI</td></tr>
+          <tr class="admrow"><td><b>Fundos</b></td><td><input id="w_fun" type="text" inputmode="decimal" autocomplete="off"></td><td><input type="text" value="não considerada" disabled title="No commission based a taxa de adm. dos fundos não entra na simulação"></td><td><input id="adm" type="number" step="0.05" min="0" title="Taxa média de adm. dos fundos: volta como cashback e abate o fee do mês"></td><td class="note">% a.a.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="hint" id="wsum"></div>
+      <div class="hint"><b>Fundos</b>: a coluna Fee based recebe a taxa média de administração dos fundos, em % a.a. No fee based ela volta todo mês como cashback sobre o saldo em fundos (convertida para a taxa mensal equivalente) e abate o fee. No commission ela não é considerada. A rentabilidade dos fundos fica em <i>Premissas gerais</i> e é a mesma nos dois modelos.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict"></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card" style="margin-top:18px">
+    <h2>Rentabilidade mensal da carteira</h2>
+    <p class="note" style="margin:0 0 10px">Composição da rentabilidade no 1º mês, ponderada pela alocação: rendimento dos ativos, mais o cashback dos fundos (só no fee based), menos o fee.</p>
+    <div class="scroll"><table id="mensal"></table></div>
+  </div>
+
+  <div style="margin-top:18px">
+    <div class="card"><h2>Evolução do patrimônio</h2><p class="note" style="margin:0 0 10px">Saldo ao fim de cada ano (fee based já líquido da taxa).</p><div class="chartbox big"><canvas id="chPat"></canvas></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Evolução ano a ano</h2>
+    <p class="note" style="margin:0 0 10px">Linhas destacadas = marcos escolhidos.</p>
+    <div class="scroll"><table id="tbAnos"></table></div>
+  </div>
+
+  <div class="card rac" id="racional"></div>
+</div>
+
+<script>
+const DEF={pat:1000000,anos:10,cdi:15,ipca:5,fee:1,fun_cdi:100,marcos:"5, 10",base:"inicio",mens:"equiv",
+  w_pre:33.3333,w_ipca:33.3333,w_pos:33.3334,w_fun:0,cb_pre:14,fb_pre:15,cb_ipca:6.5,fb_ipca:7.5,cb_pos:107,fb_pos:109,adm:0,simp_base:15,simp_add:1.5,dia_fee:5};
+const IDS=Object.keys(DEF);
+const WIDS=['w_pre','w_ipca','w_pos','w_fun'];
+let MODO='pct'; // 'pct' = peso em %, 'valor' = valor em R$
+let ESTR='det'; // 'det' = ativo por ativo, 'sim' = simplificado (rendimento adicional)
+const $=id=>document.getElementById(id);
+const brl=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const brl2=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
+const pct=(v,d=2)=>(v*100).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d})+'%';
+const num=(v,d=2)=>v.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pp=(v,d=2)=>(v>=0?'+':'')+num(v*100,d)+' p.p.';
+const CLS_DET=[{k:'pre',nome:'Prefixado'},{k:'ipca',nome:'Inflação (IPCA+)'},{k:'pos',nome:'Pós-fixado (% CDI)'},{k:'fun',nome:'Fundos'}];
+const CLS_SIM=[{k:'cart',nome:'Carteira (simplificado)'}];
+let CLS=CLS_DET;
+
+// campos em formato brasileiro: moeda = 1.000.000,00 ; peso % = 33,3333
+const ehMoeda=id=>id==='pat'||(MODO==='valor'&&WIDS.includes(id));
+const ehTexto=id=>id==='pat'||WIDS.includes(id);
+function lerBR(s,moeda){ s=String(s==null?'':s).replace(/R\$|\s|%/g,''); if(!s)return 0;
+  if(s.includes(',')) s=s.replace(/\./g,'').replace(',','.');               // 1.234.567,89
+  else if(moeda && /^-?\d{1,3}(\.\d{3})+$/.test(s)) s=s.replace(/\./g,''); // 1.234.567
+  const v=parseFloat(s); return isFinite(v)?v:0; }
+function fmtBR(v,moeda){ return moeda ? v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})
+                                      : v.toLocaleString('pt-BR',{maximumFractionDigits:4}); }
+function formata(id){ if(ehTexto(id)) $(id).value=fmtBR(lerBR($(id).value,ehMoeda(id)),ehMoeda(id)); }
+function setModoUI(){ $('mPct').classList.toggle('on',MODO==='pct'); $('mVal').classList.toggle('on',MODO==='valor');
+  $('wHead').textContent=MODO==='pct'?'Peso (%)':'Valor (R$)';
+  $('eDet').classList.toggle('on',ESTR==='det'); $('eSim').classList.toggle('on',ESTR==='sim');
+  $('detBox').hidden=ESTR!=='det'; $('simpBox').hidden=ESTR!=='sim'; $('segPeso').hidden=ESTR!=='det'; }
+function trocaEstr(e){ if(e===ESTR)return; ESTR=e; setModoUI(); render(); }
+function load(){let s={};try{s=JSON.parse(localStorage.getItem('feecalc')||'{}')}catch(e){}
+  MODO=s.__modo==='valor'?'valor':'pct'; ESTR=s.__estr==='sim'?'sim':'det';
+  if((s.__v||0)<2) delete s.base; // v2: fee passa a ser cobrado sobre o patrimônio do início do mês
+  IDS.forEach(id=>{$(id).value=(s[id]!==undefined?s[id]:DEF[id])});
+  setModoUI(); IDS.forEach(formata);}
+function save(){try{const s={__v:2,__modo:MODO,__estr:ESTR};IDS.forEach(id=>s[id]=$(id).value);localStorage.setItem('feecalc',JSON.stringify(s))}catch(e){}}
+function trocaModo(m){ if(m===MODO)return; const P=lerBR($('pat').value,true);
+  WIDS.forEach(id=>{const v=lerBR($(id).value,MODO==='valor');
+    $(id).value= fmtBR(m==='valor' ? Math.round(v/100*P*100)/100 : (P>0? Math.round(v/P*100*10000)/10000 : 0), m==='valor');});
+  MODO=m; setModoUI(); render(); }
+function read(){const g=id=>ehTexto(id)?lerBR($(id).value,ehMoeda(id)):(parseFloat($(id).value)||0), P=g('pat');
+  const peso=id=>MODO==='pct'? g(id)/100 : (P>0? g(id)/P : 0);
+  if(ESTR==='sim'){ // simplificado: uma carteira só; fee based = commission + adicional (equivalência mensal)
+    CLS=CLS_SIM; const base=g('simp_base')/100, add=Math.min(ADD_MAX,Math.max(ADD_MIN,g('simp_add')))/100; // limite 1,5% a 3% a.a.
+    const cbm=Math.pow(1+base,1/12)-1, addm=Math.pow(1+add,1/12)-1; // FB a.m. = commission a.m. + adicional a.m. (carrego mensal maior)
+    return {P,simp:true,base_s:base,add,addm,n:Math.max(1,Math.min(50,Math.round(g('anos')))),cdi:g('cdi')/100,ipca:g('ipca')/100,fee:g('fee')/100,
+      base:$('base').value,mens:$('mens').value,dia:Math.max(0,Math.min(21,Math.round(g('dia_fee')))),adm:0,fun:g('fun_cdi')/100,
+      marcos:$('marcos').value.split(/[;,\s]+/).map(x=>parseInt(x)).filter(x=>x>0),
+      w:{cart:1},cb:{cart:base},fb:{cart:Math.pow(1+cbm+addm,12)-1}}; }
+  CLS=CLS_DET;
+  return {P,n:Math.max(1,Math.min(50,Math.round(g('anos')))),cdi:g('cdi')/100,ipca:g('ipca')/100,fee:g('fee')/100,
+    base:$('base').value,mens:$('mens').value,dia:Math.max(0,Math.min(21,Math.round(g('dia_fee')))),adm:Math.max(0,g('adm'))/100,fun:g('fun_cdi')/100,
+    marcos:$('marcos').value.split(/[;,\s]+/).map(x=>parseInt(x)).filter(x=>x>0),
+    w:{pre:peso('w_pre'),ipca:peso('w_ipca'),pos:peso('w_pos'),fun:peso('w_fun')},
+    cb:{pre:g('cb_pre')/100,ipca:g('cb_ipca')/100,pos:g('cb_pos')/100,fun:g('fun_cdi')/100},
+    fb:{pre:g('fb_pre')/100,ipca:g('fb_ipca')/100,pos:g('fb_pos')/100,fun:g('fun_cdi')/100}};}
+
+// taxa anual efetiva de cada classe (fundos: % do CDI, igual nos dois modelos)
+function anual(k,x,I){ if(k==='pre'||k==='cart')return x; if(k==='ipca')return (1+I.ipca)*(1+x)-1; return x*I.cdi; }
+const ADD_MIN=1.5, ADD_MAX=3; // limites do rendimento adicional (% a.a.)
+const DU_MES=21; // dias úteis médios no mês
+function fracFee(I){ return (I.dia||0)/DU_MES; }
+function feeMes(I){ return I.mens==='linear'? I.fee/12 : Math.pow(1+I.fee,1/12)-1; }
+// cashback da taxa de adm. dos fundos: sempre pela equivalência mensal composta
+function admMes(I){ return Math.pow(1+I.adm,1/12)-1; }
+
+// rentabilidade mensal de uma classe em cada modelo.
+// No fee based, a fatia em Fundos soma o cashback da taxa de adm. (equivalente mensal) à rentabilidade do mês.
+function mesCB(k,I){ return Math.pow(1+anual(k,I.cb[k],I),1/12)-1; }
+function mesFB(k,I){ return Math.pow(1+anual(k,I.fb[k],I),1/12)-1 + (k==='fun'?admMes(I):0); }
+function anualFB(k,I){ return Math.pow(1+mesFB(k,I),12)-1; }
+
+// simula um ativo: saldo inicial, taxa anual do produto, fee ligado?, cashback ligado? -> saldos anuais, fee e cashback por ano
+// o cashback da taxa de adm. só existe na fatia em Fundos (cbOn) e entra como rentabilidade do mês
+function simAtivo(s0,r,feeOn,I,cbOn){
+  const im=Math.pow(1+r,1/12)-1, fm=feeOn?feeMes(I):0, cm=(feeOn&&cbOn)?(I.simp?I.addm:admMes(I)):0; // simplificado: cm = rendimento adicional
+  // O fee de um mês é apurado no fim do mês e DEBITADO no Xº dia útil do mês seguinte.
+  // Até o débito, o valor continua na carteira e rende (fração fr do mês seguinte).
+  const fr=fracFee(I), i=im+cm;
+  let b=s0, pend=0, fy=0, cy=0; const saldos=[s0], fees=[0], cbs=[0];
+  for(let m=1;m<=I.n*12;m++){
+    const ini=b;                                   // inclui o fee do mês anterior, ainda não debitado
+    const fim= ini*(1+i) - pend*Math.pow(1+i,1-fr); // rende o mês todo; o fee pendente sai no dia do débito
+    const baseV= I.base==='media'?(ini+fim)/2 : I.base==='inicio'?ini:fim;
+    const f=baseV*fm, c=ini*cm; pend=f; b=fim; fy+=f; cy+=c;
+    // saldo do ano já descontado do fee do último mês (apurado, a debitar no mês seguinte)
+    if(m%12===0){saldos.push(b-pend);fees.push(fy);cbs.push(cy);fy=0;cy=0;}
+  }
+  return {saldos,fees,cbs};
+}
+// rentabilidade do mês 1 da carteira toda (ponderada pelo valor alocado)
+function mes1(I){ let A=0,cb=0,fbB=0,fee=0,cbk=0; const fm=feeMes(I);
+  CLS.forEach(c=>{ const s=I.P*I.w[c.k]; if(s<=0)return; A+=s;
+    cb+=s*mesCB(c.k,I); const iF=mesFB(c.k,I), fim=s*(1+iF); fbB+=s*iF;
+    if(c.k==='fun') cbk+=s*admMes(I);
+    if(c.k==='cart') cbk+=s*I.addm;
+    fee+=(I.base==='media'?(s+fim)/2:I.base==='inicio'?s:fim)*fm; });
+  if(A<=0) return null;
+  return {cb:cb/A, fbB:fbB/A, cbk:cbk/A, fee:fee/A, fbL:(fbB-fee)/A}; }
+function simular(I){
+  const out={cb:{},fb:{}};
+  CLS.forEach(c=>{ const s0=I.P*I.w[c.k];
+    out.cb[c.k]=simAtivo(s0,anual(c.k,I.cb[c.k],I),false,I);
+    out.fb[c.k]= c.k==='cart' ? simAtivo(s0,I.base_s,true,I,true) : simAtivo(s0,anual(c.k,I.fb[c.k],I),true,I,c.k==='fun'); });
+  const tot=(m,f)=>Array.from({length:I.n+1},(_,y)=>CLS.reduce((a,c)=>a+out[m][c.k][f][y],0));
+  out.CB=tot('cb','saldos'); out.FB=tot('fb','saldos'); out.FEE=tot('fb','fees'); out.CBK=tot('fb','cbs');
+  out.NET=out.FEE.map((f,y)=>f-out.CBK[y]); return out;
+}
+// taxa bruta anual que o fee based precisaria para empatar com o commission (por ativo)
+function empate(k,I,alvo){ const s0=I.P*I.w[k]; if(s0<=0)return null;
+  if(k==='cart'){ let lo=-0.5,hi=1; for(let i=0;i<80;i++){const a=(lo+hi)/2; const v=simAtivo(s0,I.base_s,true,{...I,addm:Math.pow(1+a,1/12)-1},true).saldos[I.n]; if(v<alvo)lo=a;else hi=a;} return (lo+hi)/2; }
+  let lo=-0.5,hi=3; for(let i=0;i<80;i++){const mid=(lo+hi)/2; const v=simAtivo(s0,mid,true,I,k==='fun').saldos[I.n]; if(v<alvo)lo=mid;else hi=mid;}
+  return (lo+hi)/2; }
+function natural(k,r,I){ if(k==='cart') return 'adicional de '+num(r*100)+'% a.a.';
+  if(k==='pre')return num(r*100)+'% a.a.'; if(k==='ipca')return 'IPCA + '+num(((1+r)/(1+I.ipca)-1)*100)+'%'; return num(r/I.cdi*100,1)+'% do CDI'; }
+function cagr(v,P,n){return Math.pow(v/P,1/n)-1}
+
+let chP;
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function render(){
+  save(); const I=read(); const R=simular(I); const n=I.n, P=I.P;
+  if(I.simp) $('simpInfo').innerHTML=(()=>{const v=parseFloat($('simp_add').value); return isFinite(v)&&(v<ADD_MIN||v>ADD_MAX)?`<span class="wsum-bad">Adicional limitado entre ${num(ADD_MIN)}% e ${num(ADD_MAX)}% a.a.: usando ${num(I.add*100)}%.</span><br>`:'';})()+`Commission: ${pct(I.base_s)} a.a. → <b>${pct(Math.pow(1+I.base_s,1/12)-1,4)} a.m.</b> · Adicional: ${pct(I.add)} a.a. → <b>+${pct(I.addm,4)} a.m.</b> · Fee based: ${pct(Math.pow(1+I.base_s,1/12)-1,4)} + ${pct(I.addm,4)} = <b>${pct(Math.pow(1+I.base_s,1/12)-1+I.addm,4)} a.m.</b> (≈ ${pct(I.fb.cart)} a.a.), antes do fee.`;
+  const ws=I.simp?1:I.w.pre+I.w.ipca+I.w.pos+I.w.fun, acima=ws>1.00005, abaixo=ws<0.99995;
+  const somaTxt= MODO==='pct' ? num(ws*100)+'%' : brl2(ws*P)+' de '+brl2(P)+' ('+num(ws*100)+'%)';
+  $('wsum').innerHTML=`Soma dos ${MODO==='pct'?'pesos':'valores'}: <b class="${acima?'wsum-bad':''}">${somaTxt}</b>`+
+    (acima?' <span class="wsum-bad">· passou de 100%, ajuste a alocação</span>':abaixo?` <span class="neg">· faltam ${MODO==='pct'?num((1-ws)*100)+'%':brl2((1-ws)*P)} para 100%</span>`:'');
+  const cbF=R.CB[n], fbF=R.FB[n], dif=fbF-cbF, sum=a=>a.reduce((x,y)=>x+y,0);
+  const feeBruto=sum(R.FEE), cbkTot=sum(R.CBK), feeTot=feeBruto-cbkTot, temCb=I.adm>0&&I.w.fun>0;
+  const tcb=cagr(cbF,P,n), tfb=cagr(fbF,P,n);
+  const venc=dif>=0?'fee based':'commission based';
+  $('verdict').innerHTML=`Em <b>${n} anos</b>, o <b style="color:var(--${dif>=0?'fb':'cb'})">${venc}</b> termina com <b>${brl(Math.abs(dif))}</b> a mais (${pct(Math.abs(dif)/Math.min(cbF,fbF))} acima do outro) e rende <b>${num(Math.abs(tcb-tfb)*100)} p.p. ao ano</b> a mais. O cliente pagaria <b>${brl(feeBruto)}</b> de fee no período${I.simp?` e ganharia <b>${brl(cbkTot)}</b> com o rendimento adicional do fee based`:temCb?` e receberia <b>${brl(cbkTot)}</b> de cashback da taxa de adm. dos fundos, já somado à rentabilidade (fee líquido de ${brl(feeTot)})`:''}.`;
+  const M=mes1(I);
+  $('mensal').innerHTML= !M?'' : `<thead><tr><th>Mês 1 da carteira</th><th><span class="pill p-cb">Commission</span></th><th><span class="pill p-fb">Fee based</span></th><th>Diferença</th></tr></thead><tbody>
+    <tr><td>${I.simp?'Rendimento da carteira (a.m.)':'Rentabilidade dos ativos (a.m.)'}</td><td>${pct(M.cb,4)}</td><td>${pct(M.fbB-M.cbk,4)}</td><td class="pos">${pp(M.fbB-M.cbk-M.cb,4)}</td></tr>
+    <tr><td>${I.simp?'+ Rendimento adicional fee based (a.m.)':'+ Cashback da taxa de adm. dos fundos (a.m.)'}</td><td class="note">não considerado</td><td class="pos">+${pct(M.cbk,4)}</td><td class="pos">${pp(M.cbk,4)}</td></tr>
+    <tr><td><b>= Rentabilidade bruta da carteira (a.m.)</b></td><td><b>${pct(M.cb,4)}</b></td><td><b>${pct(M.fbB,4)}</b></td><td class="${M.fbB>=M.cb?'pos':'neg'}"><b>${pp(M.fbB-M.cb,4)}</b></td></tr>
+    <tr><td>− Fee based: ${num(I.fee*100)}% a.a. = <b>${pct(feeMes(I),4)} a.m.</b></td><td class="note">—</td><td class="neg">−${pct(feeMes(I),4)}</td><td class="neg">${pp(-feeMes(I),4)}</td></tr>
+    <tr class="mark"><td><b>= Rentabilidade líquida da carteira (a.m.)</b></td><td><b>${pct(M.cb,4)}</b></td><td><b>${pct(M.fbL,4)}</b></td><td class="${M.fbL>=M.cb?'pos':'neg'}"><b>${pp(M.fbL-M.cb,4)}</b></td></tr>
+    <tr><td>Equivalente ao ano (líquida)</td><td>${pct(Math.pow(1+M.cb,12)-1)}</td><td>${pct(Math.pow(1+M.fbL,12)-1)}</td><td class="${M.fbL>=M.cb?'pos':'neg'}">${pp(Math.pow(1+M.fbL,12)-Math.pow(1+M.cb,12))}</td></tr></tbody>`;
+  $('kpis').innerHTML=`
+   <div class="kpi cb"><div class="t">Commission · saldo final</div><div class="v">${brl(cbF)}</div><div class="d">Rentab. ${pct(cbF/P-1)} · ${pct(tcb)} a.a.</div></div>
+   <div class="kpi fb"><div class="t">Fee based · saldo final</div><div class="v">${brl(fbF)}</div><div class="d">Rentab. ${pct(fbF/P-1)} · ${pct(tfb)} a.a.</div></div>
+   <div class="kpi"><div class="t">Diferença (fee − commission)</div><div class="v ${dif>=0?'pos':'neg'}">${dif>=0?'+':'−'}${brl(Math.abs(dif))}</div><div class="d">${pp(tfb-tcb)} a.a. na taxa anualizada</div></div>
+   <div class="kpi"><div class="t">Fee total pago</div><div class="v">${brl(feeBruto)}</div><div class="d">${temCb?`Cashback recebido (rentab.): ${brl(cbkTot)}<br>Fee líquido: ${brl(feeTot)}`:`Ano 1: ${brl(R.FEE[1])} · Ano ${n}: ${brl(R.FEE[n])}`}</div></div>`;
+
+
+  // ano a ano
+  const nFb=temCb?6:4;
+  let t=`<thead><tr><th></th><th colspan="2" class="gcb gsep">Commission</th><th colspan="${nFb}" class="gfb gsep">Fee based</th><th></th></tr>
+    <tr><th>Ano</th><th class="gcb gsep">Saldo</th><th class="gcb">Rentab. acum.</th><th class="gfb gsep">Saldo</th><th class="gfb">Rentab. acum.</th><th class="gfb">Fee no ano</th>${temCb?'<th class="gfb">Cashback adm.</th><th class="gfb">Fee líquido</th>':''}<th class="gfb">${temCb?'Fee líq. acumulado':'Fee acumulado'}</th><th class="gsep">Diferença</th></tr></thead><tbody>`; let ac=0;
+  for(let y=0;y<=n;y++){ ac+=temCb?R.NET[y]:R.FEE[y]; const d=R.FB[y]-R.CB[y];
+    t+=`<tr class="${I.marcos.includes(y)?'mark':''}"><td>${y}</td><td class="gcb gsep">${brl(R.CB[y])}</td><td class="gcb">${pct(R.CB[y]/P-1)}</td><td class="gfb gsep">${brl(R.FB[y])}</td><td class="gfb">${pct(R.FB[y]/P-1)}</td><td class="gfb">${y?brl(R.FEE[y]):'—'}</td>${temCb?`<td class="gfb pos">${y?'+'+brl(R.CBK[y]):'—'}</td><td class="gfb">${y?brl(R.NET[y]):'—'}</td>`:''}<td class="gfb">${y?brl(ac):'—'}</td><td class="gsep ${d>=0?'pos':'neg'}">${Math.abs(d)<0.5?'R$ 0':(d>=0?'+':'−')+brl(Math.abs(d))}</td></tr>`;}
+  $('tbAnos').innerHTML=t+'</tbody>';
+
+  // gráficos
+  const labels=Array.from({length:n+1},(_,i)=>'Ano '+i), grid=css('--line'), tick=css('--muted');
+  const fmtK=v=>'R$ '+(Math.abs(v)>=1e6?num(v/1e6,1)+' mi':num(v/1e3,0)+' mil');
+  const opts={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{labels:{color:tick,boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+brl(c.parsed.y)}}},
+    scales:{x:{ticks:{color:tick},grid:{color:grid}},y:{ticks:{color:tick,callback:fmtK},grid:{color:grid}}}};
+  if(chP)chP.destroy();
+  chP=new Chart($('chPat'),{type:'line',data:{labels,datasets:[
+    {label:'Commission based',data:R.CB,borderColor:css('--cb'),backgroundColor:css('--cb'),borderWidth:2.5,pointRadius:2,tension:.2},
+    {label:'Fee based (líquido)',data:R.FB,borderColor:css('--fb'),backgroundColor:css('--fb'),borderWidth:2.5,pointRadius:2,tension:.2}]},options:opts});
+
+  racional(I,R);
+}
+
+function racional(I,R){
+  const n=I.n, fm=feeMes(I), am=admMes(I);
+  const baseTxt={media:'(saldo no início do mês + saldo no fim do mês) ÷ 2',inicio:'saldo no início do mês',fim:'saldo no fim do mês, antes do fee'}[I.base];
+  const linhas=CLS.filter(c=>I.w[c.k]>0).map(c=>{const rc=anual(c.k,I.cb[c.k],I), rf=anualFB(c.k,I);
+    return {c,rc,rf,mc:mesCB(c.k,I),mf:mesFB(c.k,I)};});
+  const conv=k=>k==='pre'?'taxa já é anual: r = taxa':k==='ipca'?`r = (1 + IPCA) × (1 + spread) − 1`:`r = %CDI × CDI`;
+  const ex=linhas.map(l=>{ const s0=I.P*I.w[l.c.k], fim=s0*(1+l.mf);
+    const b= I.base==='media'?(s0+fim)/2:I.base==='inicio'?s0:fim; const f=b*fm, c=l.c.k==='fun'?s0*am:l.c.k==='cart'?s0*I.addm:0;
+    return `${l.c.nome.padEnd(20)} início ${brl2(s0).padStart(16)} → rende ${brl2(fim-s0).padStart(13)}`+(c>0?` (inclui ${I.simp?'adicional':'cashback'} ${brl2(c)})`:'')+` → fim ${brl2(fim).padStart(16)} → fee apurado ${brl2(f).padStart(10)} (debitado no ${I.dia}º dia útil do mês 2)`; }).join('\n');
+  const simpTxt=I.simp?`
+  <div class="step"><div class="n">3b</div><div class="b"><h3>Rendimento adicional do fee based (modo simplificado)</h3>
+  <p>No modo simplificado não há ativos nem categorias. A carteira <b>commission</b> rende sempre o rendimento informado (${pct(I.base_s)} a.a.), mensalizado pela equivalência de taxas, sem nenhum adicional. No <b>fee based</b>, todos os ativos têm um carrego mensal maior: o adicional anual é mensalizado pela equivalência de taxas e <b>somado ao rendimento mensal</b> do commission.</p>
+  <div class="formula">commission  (a.m.)  = (1 + ${num(I.base_s,4)})^(1/12) − 1 = ${pct(Math.pow(1+I.base_s,1/12)-1,4)}
+adicional   (a.m.)  = (1 + ${num(I.add,4)})^(1/12) − 1 = ${pct(I.addm,4)}
+fee based   (a.m.)  = ${pct(Math.pow(1+I.base_s,1/12)-1,4)} + ${pct(I.addm,4)} = ${pct(Math.pow(1+I.base_s,1/12)-1+I.addm,4)}   ← antes do fee
+fee based   (a.a.)  = (1 + ${pct(Math.pow(1+I.base_s,1/12)-1+I.addm,4)})^12 − 1 ≈ ${pct(I.fb.cart)}
+saldo_fim           = saldo_início × (1 + fee based a.m.) − fee do mês anterior (no dia do débito)</div>
+  <p>No período, o adicional gerou ${brl(R.CBK.reduce((a,b)=>a+b,0))} de rendimento a mais, contra ${brl(R.FEE.reduce((a,b)=>a+b,0))} de fee pago.</p></div></div>`:'';
+  const admTxt=I.simp?simpTxt:(I.adm>0&&I.w.fun>0)?`
+  <div class="step"><div class="n">3b</div><div class="b"><h3>Cashback da taxa de administração dos fundos</h3>
+  <p>No fee based, a taxa de administração que os fundos cobram volta para o cliente todo mês. Ela entra como <b>rentabilidade a mais da fatia em Fundos</b> e, na prática, abate o fee a pagar. No commission ela <b>não entra na simulação</b>.</p>
+  <p>A taxa é informada ao ano (${num(I.adm*100)}% a.a.) e convertida para a equivalência mensal composta, que é somada à rentabilidade mensal dos fundos:</p>
+  <div class="formula">cashback_mensal       = (1 + ${num(I.adm,4)})^(1/12) − 1 = ${pct(am,4)} ao mês
+rentab. fundos (CB)   = (1 + ${pct(I.fun*I.cdi)})^(1/12) − 1 = ${pct(mesCB('fun',I),4)} ao mês
+rentab. fundos (FB)   = ${pct(mesCB('fun',I),4)} + ${pct(am,4)} = ${pct(mesFB('fun',I),4)} ao mês  (≈ ${pct(anualFB('fun',I))} a.a.)
+saldo_fim             = saldo_início × (1 + rentab. fundos FB)
+saldo_novo            = saldo_fim − fee_do_mês</div>
+  <p>Os fundos rendem ${num(I.fun*100,1)}% do CDI = ${pct(I.fun*I.cdi)} a.a. nos dois modelos; no fee based somam o cashback. No período: fee ${brl(R.FEE.reduce((a,b)=>a+b,0))}, cashback recebido ${brl(R.CBK.reduce((a,b)=>a+b,0))}, fee líquido <b>${brl(R.NET.reduce((a,b)=>a+b,0))}</b>.</p></div></div>`:`
+  <div class="step"><div class="n">3b</div><div class="b"><h3>Cashback da taxa de administração dos fundos</h3>
+  <p class="note">Sem efeito agora: é preciso ter peso em Fundos e taxa de adm. maior que zero. Com os dois preenchidos, a taxa anual é convertida para mensal, (1 + taxa)^(1/12) − 1, e somada à rentabilidade mensal dos fundos, só no fee based.</p></div></div>`;
+  const cbF=R.CB[n], fbF=R.FB[n], tcb=cagr(cbF,I.P,n), tfb=cagr(fbF,I.P,n);
+  const brk=linhas.map(l=>{const sp=l.rf-l.rc, s=sp-I.fee; return `<tr><td><b>${l.c.nome}</b>${l.c.k==='fun'&&I.adm>0?' <span class="note">(spread = cashback)</span>':''}</td><td>${pct(l.rc)}</td><td>${pct(l.rf)}</td><td>${pp(sp)}</td><td>−${num(I.fee*100)} p.p.</td><td class="${s>=0?'pos':'neg'}">${pp(s)}</td></tr>`}).join('');
+  $('racional').innerHTML=`
+  <h2>Racional das contas</h2>
+  <p class="note" style="margin:0">Passo a passo do que a calculadora faz, com os números dos campos acima.</p>
+
+  ${I.simp?`<div class="step"><div class="n">1</div><div class="b"><h3>Rendimento anual de cada carteira</h3>
+  <p>No modo simplificado, a carteira commission usa o rendimento informado. A do fee based usa esse rendimento mais o adicional, somado mês a mês (passo 3b).</p>
+  <div class="scroll"><table><thead><tr><th>Carteira</th><th>Commission</th><th>Fee based (antes do fee)</th></tr></thead><tbody>
+  ${linhas.map(l=>`<tr><td>${l.c.nome}</td><td>${pct(l.rc,3)}</td><td>${pct(l.rf,3)}</td></tr>`).join('')}</tbody></table></div></div></div>`:`
+  <div class="step"><div class="n">1</div><div class="b"><h3>Transformar cada taxa em rentabilidade anual efetiva</h3>
+  <p>Cada classe é cotada de um jeito, então tudo é convertido para “% ao ano”:</p>
+  <div class="formula">Prefixado   ${conv('pre')}
+Inflação    ${conv('ipca')}      ← composição, não soma
+Pós-fixado  ${conv('pos')}
+Fundos      r = %CDI dos fundos × CDI      ← no fee based soma o cashback da taxa de adm. (passo 3b)</div>
+  <div class="scroll"><table><thead><tr><th>Classe</th><th>Commission</th><th>Fee based</th></tr></thead><tbody>
+  ${linhas.map(l=>`<tr><td>${l.c.nome}</td><td>${pct(l.rc,3)}</td><td>${pct(l.rf,3)}</td></tr>`).join('')}</tbody></table></div>
+  <p class="note">Ex.: IPCA de ${num(I.ipca*100)}% com IPCA + ${num(I.cb.ipca*100)}% → (1 + ${num(I.ipca,4)}) × (1 + ${num(I.cb.ipca,4)}) − 1 = ${pct(anual('ipca',I.cb.ipca,I),3)}. Somar direto daria ${num((I.ipca+I.cb.ipca)*100)}%, que subestima o resultado.</p></div></div>`}
+
+  <div class="step"><div class="n">2</div><div class="b"><h3>Levar a taxa anual para mensal (juros compostos)</h3>
+  <p>A simulação roda mês a mês, porque o fee é cobrado todo mês. A taxa mensal equivalente é a que, capitalizada 12 vezes, devolve a taxa anual:</p>
+  <div class="formula">i_mensal = (1 + r_anual)^(1/12) − 1</div>
+  <div class="scroll"><table><thead><tr><th>Classe</th><th>Commission (a.m.)</th><th>Fee based (a.m.)</th></tr></thead><tbody>
+  ${linhas.map(l=>`<tr><td>${l.c.nome}</td><td>${pct(l.mc,4)}</td><td>${pct(l.mf,4)}</td></tr>`).join('')}</tbody></table></div></div></div>
+
+  <div class="step"><div class="n">3</div><div class="b"><h3>Apurar o fee no mês e debitar no mês seguinte</h3>
+  <p>O fee anual de ${num(I.fee*100)}% vira uma taxa mensal ${I.mens==='linear'?'linear: '+num(I.fee*100)+'% ÷ 12':'equivalente: (1 + '+num(I.fee,4)+')^(1/12) − 1'} = <b>${pct(fm,4)} ao mês</b>, aplicada sobre o ${baseTxt}.</p>
+  <p>O rendimento do mês entra <b>100%</b>. O fee daquele mês só é debitado no <b>${I.dia}º dia útil do mês seguinte</b> (ex.: o fee de novembro sai no ${I.dia}º dia útil de dezembro). Até o débito, o valor continua na carteira e rende. Considerando ${DU_MES} dias úteis por mês, ele rende ${num(fracFee(I)*100,1)}% de um mês a mais.</p>
+  <div class="formula">fee_do_mês(m)   = base_fee(m) × ${pct(fm,4)}                    ← apurado no fim do mês m
+saldo_fim(m+1)  = saldo_início × (1 + i_mensal)
+                − fee_do_mês(m) × (1 + i_mensal)^(1 − ${num(fracFee(I),4)})   ← debitado no ${I.dia}º dia útil
+saldo do ano    = saldo_fim − fee de dezembro (apurado, a debitar em janeiro)</div>
+  <p>Mês 1 do fee based, na prática (o fee é apurado agora e debitado no mês 2):</p>
+  <div class="formula">${ex}</div>
+  <p>O fee pago sai do patrimônio e deixa de render dali em diante, mas só depois do débito. Por isso o efeito do fee em ${n} anos é um pouco maior que “${num(I.fee*100)}% × ${n} anos”, e a carência até o ${I.dia}º dia útil reduz esse efeito. ${(()=>{const R0=simular({...I,dia:0}); const g=R.FB[n]-R0.FB[n]; return `Nesta simulação, debitar no ${I.dia}º dia útil em vez de no último dia do mês vale <b>+${brl(g)}</b> no saldo final.`;})()} No commission não há fee: o saldo só capitaliza.</p></div></div>
+  ${admTxt}
+
+  <div class="step"><div class="n">4</div><div class="b"><h3>Somar a carteira e apurar o custo do fee</h3>
+  <p>${I.simp?'No modo simplificado há uma carteira só, sem classes.':'Cada classe roda separada, com seu próprio saldo, e a carteira é a soma das classes. <b>Não há rebalanceamento</b>: a classe que rende mais vai ganhando peso com o tempo.'} O fee do ano é a soma dos 12 fees mensais (ano 1 = ${brl(R.FEE[1])}; ano ${n} = ${brl(R.FEE[n])}).</p></div></div>
+
+  <div class="step"><div class="n">5</div><div class="b"><h3>Medir a rentabilidade</h3>
+  <div class="formula">Rentabilidade absoluta   = saldo_final ÷ patrimônio_inicial − 1
+Taxa anualizada          = (saldo_final ÷ patrimônio_inicial)^(1/anos) − 1
+Diferença em p.p.        = taxa_anual_A − taxa_anual_B
+Diferença composta       = (1 + taxa_A) ÷ (1 + taxa_B) − 1</div>
+  <p>Em ${n} anos: commission ${pct(cbF/I.P-1)} (${pct(tcb)} a.a.) × fee based ${pct(fbF/I.P-1)} (${pct(tfb)} a.a.). Diferença de <b>${num(Math.abs(tcb-tfb)*100)} p.p. a.a.</b>, ou ${pct(Math.abs((1+tcb)/(1+tfb)-1))} a.a. na comparação composta.</p></div></div>
+
+  <div class="step"><div class="n">6</div><div class="b"><h3>A regra de bolso: spread contra fee</h3>
+  <p>O fee based só compensa quando o ganho de rentabilidade (produtos que pagam mais, mais o cashback dos fundos) é <b>pelo menos igual ao fee</b>. Comparando por classe:</p>
+  <div class="scroll"><table><thead><tr><th>Classe</th><th>Commission</th><th>Fee based</th><th>Spread</th><th>Fee</th><th>Saldo</th></tr></thead><tbody>${brk}</tbody></table></div>
+  <p class="note">Um ganho de 1 p.p. contra 1% de fee dá quase empate. O fee incide sobre um saldo que já rendeu (base média), por isso um ganho exatamente igual ao fee ainda perde por pouco.${I.simp?'':` No pós-fixado, 2 p.p. de CDI viram só ${num((I.fb.pos-I.cb.pos)*I.cdi*100)} p.p. de taxa: é ali que o fee pesa mais.`}</p></div></div>
+
+  <div class="step"><div class="n">7</div><div class="b"><h3>Ponto de empate</h3>
+  <p>${I.simp?'A calculadora procura (por bissecção numérica) o rendimento adicional mínimo':'Para cada classe, a calculadora procura (por bissecção numérica) a taxa bruta que o produto fee based precisaria pagar'} para que o saldo líquido de fee no ano ${n} seja igual ao do commission:</p>
+  <div class="scroll"><table><thead><tr><th>${I.simp?'Carteira':'Classe'}</th><th>Commission</th><th>Fee based hoje</th><th>Fee based precisa para empatar</th></tr></thead><tbody>
+  ${linhas.map(l=>{const e=empate(l.c.k,I,R.cb[l.c.k].saldos[n]); return `<tr><td>${l.c.nome}</td><td>${pct(l.rc)}</td><td>${pct(l.rf)}</td><td><b>${e===null?'—':natural(l.c.k,e,I)}</b></td></tr>`;}).join('')}</tbody></table></div></div></div>
+
+  <div class="step"><div class="n">!</div><div class="b"><h3>Premissas e limitações</h3>
+  <ul>
+    <li>CDI, IPCA e taxas constantes durante todo o horizonte, com reinvestimento à mesma taxa (sem vencimentos intermediários).</li>
+    <li>Sem imposto de renda, come-cotas, custódia ou marcação a mercado. Com IR, os dois modelos são afetados, mas o fee reduz a base tributável do fee based.</li>
+    <li>O fee é descontado do próprio patrimônio de cada classe (não é pago “por fora”).</li>
+    <li>Sem aportes nem resgates e sem rebalanceamento entre classes.</li>
+    <li>É uma comparação de custo e taxa. Não considera a qualidade do aconselhamento nem conflitos de interesse.</li>
+  </ul></div></div>`;
+}
+
+IDS.forEach(id=>$(id).addEventListener('input',render));
+IDS.filter(ehTexto).forEach(id=>$(id).addEventListener('blur',()=>{formata(id);save();}));
+function limitaAdd(){ const e=$('simp_add'), v=parseFloat(e.value); const c=isFinite(v)?Math.min(ADD_MAX,Math.max(ADD_MIN,v)):ADD_MIN; if(c!==v){e.value=c;} }
+$('simp_add').addEventListener('blur',()=>{limitaAdd();render();});
+$('reset').onclick=()=>{try{localStorage.removeItem('feecalc')}catch(e){} MODO='pct'; ESTR='det'; load(); limitaAdd(); render();};
+$('mPct').onclick=()=>trocaModo('pct'); $('mVal').onclick=()=>trocaModo('valor');
+$('eDet').onclick=()=>trocaEstr('det'); $('eSim').onclick=()=>trocaEstr('sim');
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render);
+load(); limitaAdd(); render();
+</script>
+</body>
+</html>
